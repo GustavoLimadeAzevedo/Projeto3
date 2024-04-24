@@ -1,3 +1,4 @@
-2°Branch
+3°Branch
 
-Fizemos a função de Deletar o contato pelo o número de telefone.
+Fizemos a função que salva e carrega o contato.
+Criando um arquivo não binário.

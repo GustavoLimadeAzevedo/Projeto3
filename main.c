@@ -1,42 +1,80 @@
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_CONTACTS 100
+#define MAX_CONTATOS 100
 
-struct Contact {
+struct Contato {
     char nome[50];
     char sobrenome[50];
     char email[100];
     char telefone[15];
 };
 
-struct Contact listaContatos[MAX_CONTACTS];
+struct Contato listaContatos[MAX_CONTATOS];
 int numContatos = 0;
 
-void adicionarContato(const char *nome, const char *sobrenome, const char *email, const char *telefone) {
-    if (numContatos < MAX_CONTACTS) {
-        strcpy(listaContatos[numContatos].nome, nome);
-        strcpy(listaContatos[numContatos].sobrenome, sobrenome);
-        strcpy(listaContatos[numContatos].email, email);
-        strcpy(listaContatos[numContatos].telefone, telefone);
-        numContatos++;
-        printf("Contato adicionado com sucesso!\n");
-    } else {
-        printf("A lista de contatos está cheia. Não é possível adicionar mais contatos.\n");
-    }
-}
-
-void mostrarContatos() {
-    if (numContatos == 0) {
-        printf("A lista de contatos está vazia.\n");
+void salvarContatos() {
+    FILE *arquivo;
+    arquivo = fopen("contatos.bin", "wb");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo.\n");
         return;
     }
 
-    printf("Lista de Contatos:\n");
-    for (int i = 0; i < numContatos; i++) {
-        printf("%d. Nome: %s %s, Email: %s, Telefone: %s\n", i+1, listaContatos[i].nome, listaContatos[i].sobrenome, listaContatos[i].email, listaContatos[i].telefone);
+    fwrite(&numContatos, sizeof(int), 1, arquivo);
+    fwrite(listaContatos, sizeof(struct Contato), numContatos, arquivo);
+
+    fclose(arquivo);
+    printf("Contatos salvos com sucesso!\n");
+}
+
+void carregarContatos() {
+    FILE *arquivo;
+    arquivo = fopen("contatos.bin", "rb");
+    if (arquivo == NULL) {
+        printf("Arquivo de contatos não encontrado ou vazio.\n");
+        return;
+    }
+
+    fread(&numContatos, sizeof(int), 1, arquivo);
+    fread(listaContatos, sizeof(struct Contato), numContatos, arquivo);
+
+    fclose(arquivo);
+    printf("Contatos carregados com sucesso!\n");
+}
+
+void adicionarContato() {
+    if (numContatos < MAX_CONTATOS) {
+        struct Contato novoContato;
+
+        printf("Nome: ");
+        scanf("%s", novoContato.nome);
+
+        printf("Sobrenome: ");
+        scanf("%s", novoContato.sobrenome);
+
+        printf("Email: ");
+        scanf("%s", novoContato.email);
+
+        printf("Telefone: ");
+        scanf("%s", novoContato.telefone);
+
+        listaContatos[numContatos++] = novoContato;
+        printf("Contato adicionado com sucesso!\n");
+    } else {
+        printf("A lista de contatos está cheia!\n");
+    }
+}
+
+void listarContatos() {
+    printf("\nListagem de contatos:\n\n");
+    for (int i = 0; i < numContatos; ++i) {
+        printf("Nome: %s %s\n", listaContatos[i].nome, listaContatos[i].sobrenome);
+        printf("Email: %s\n", listaContatos[i].email);
+        printf("Telefone: %s\n\n", listaContatos[i].telefone);
     }
 }
 
@@ -56,52 +94,105 @@ void deletarContato(const char *telefone) {
     printf("Contato com o telefone %s não encontrado.\n", telefone);
 }
 
-// Implementation of the deletar_contato function as per requirement
-void deletar_contato() {
+void deletarContatoMenu() {
     char telefone[15];
     printf("Digite o telefone do contato que deseja excluir: ");
     scanf("%s", telefone);
     deletarContato(telefone);
 }
 
+void deletarContatoArquivo(const char *telefone) {
+    FILE *arquivoTemp;
+    FILE *arquivo;
+    arquivo = fopen("contatos.bin", "rb");
+    if (arquivo == NULL) {
+        printf("Arquivo de contatos não encontrado ou vazio.\n");
+        return;
+    }
+
+    int numContatosTemp;
+    fread(&numContatosTemp, sizeof(int), 1, arquivo);
+
+    struct Contato *contatosTemp = (struct Contato *)malloc(numContatosTemp * sizeof(struct Contato));
+    fread(contatosTemp, sizeof(struct Contato), numContatosTemp, arquivo);
+
+    fclose(arquivo);
+
+    int i, j;
+    for (i = 0; i < numContatosTemp; i++) {
+        if (strcmp(contatosTemp[i].telefone, telefone) == 0) {
+            for (j = i; j < numContatosTemp - 1; j++) {
+                contatosTemp[j] = contatosTemp[j + 1];
+            }
+            numContatosTemp--;
+            printf("Contato deletado com sucesso!\n");
+            break;
+        }
+    }
+
+    arquivoTemp = fopen("contatos_temp.bin", "wb");
+    if (arquivoTemp == NULL) {
+        printf("Erro ao abrir o arquivo temporário.\n");
+        free(contatosTemp);
+        return;
+    }
+
+    fwrite(&numContatosTemp, sizeof(int), 1, arquivoTemp);
+    fwrite(contatosTemp, sizeof(struct Contato), numContatosTemp, arquivoTemp);
+
+    fclose(arquivoTemp);
+
+    remove("contatos.bin");
+    rename("contatos_temp.bin", "contatos.bin");
+
+    free(contatosTemp);
+}
+
+void deletarContatoArquivoMenu() {
+    char telefone[15];
+    printf("Digite o telefone do contato que deseja excluir: ");
+    scanf("%s", telefone);
+    deletarContatoArquivo(telefone);
+}
+
 int main() {
-    int escolha;
-    char nome[50], sobrenome[50], email[100], telefone[15];
+    int opcao;
 
     do {
+        // Menu de opções
         printf("\nMenu:\n");
-        printf("1. Adicionar Contato\n");
-        printf("2. Mostrar Contatos\n");
-        printf("3. Deletar Contato\n");
-        printf("4. Sair\n");
-        printf("Escolha: ");
-        scanf("%d", &escolha);
+        printf("1. Adicionar contato\n");
+        printf("2. Listar contatos\n");
+        printf("3. Salvar contatos\n");
+        printf("4. Carregar contatos\n");
+        printf("5. Deletar contato\n");
+        printf("6. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
 
-        switch (escolha) {
+        switch (opcao) {
             case 1:
-                printf("Nome: ");
-                scanf("%s", nome);
-                printf("Sobrenome: ");
-                scanf("%s", sobrenome);
-                printf("Email: ");
-                scanf("%s", email);
-                printf("Telefone: ");
-                scanf("%s", telefone);
-                adicionarContato(nome, sobrenome, email, telefone);
+                adicionarContato();
                 break;
             case 2:
-                mostrarContatos();
+                listarContatos();
                 break;
             case 3:
-                deletar_contato(); 
+                salvarContatos();
                 break;
             case 4:
-                printf("Saindo...\n");
+                carregarContatos();
+                break;
+            case 5:
+                deletarContatoMenu();
+                break;
+            case 6:
+                printf("Encerrando o programa...\n");
                 break;
             default:
-                printf("Escolha inválida. Por favor, escolha uma opção válida.\n");
+                printf("Opção inválida!\n");
         }
-    } while (escolha != 4);
+    } while (opcao != 6);
 
     return 0;
 }
